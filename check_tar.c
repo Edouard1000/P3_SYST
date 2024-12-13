@@ -1,5 +1,6 @@
 #include "lib_tar.h"
 #include "string.h"
+#include "stdio.h"
 #define BLOCK_SIZE 512
 
 tar_header_t header;
@@ -31,6 +32,8 @@ int check_archive(int tar_fd) {
 
         // Vérification du champ "magic" 
         if (strncmp(header.magic, TMAGIC, TMAGLEN) != 0) {
+            
+            printf("tu n'as pas le bon format\n");
             return -1;  
         }
 
