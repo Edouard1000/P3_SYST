@@ -30,8 +30,48 @@ int move_toNext_file(int fd, tar_header_t* head){
  *         -3 if the archive contains a header with an invalid checksum value
  */
 int check_archive(int tar_fd) {
-    return 0;
+    tar_header_t header;
+    int num_headers = 0;  
     
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        // Vérifiez si l'en-tête est vide (fin de l'archive)
+        if (header.name[0] == '\0') {
+            break;  // Fin des en-têtes
+        }
+
+        // Vérification du champ "magic" 
+        if (strncmp(header.magic, TMAGIC, TMAGLEN) != 0) {
+            return -1;  
+        }
+
+        // Vérification du champ "version"
+        if (strncmp(header.version, TVERSION, TVERSLEN) != 0) {
+            return -2; 
+        }
+
+        // Vérification de la somme de contrôle
+        unsigned int stored_chksum = TAR_INT(header.chksum);  // Somme attendue
+        unsigned int computed_chksum = 0;
+
+        
+        char *raw_header = (char *)&header;
+        for (size_t i = 0; i < sizeof(header); i++) {
+            if (i >= 148 && i < 156) {
+                computed_chksum += ' ';  // Champ 'chksum' rempli d'espaces
+            } else {
+                computed_chksum += (unsigned char)raw_header[i];
+            }
+        }
+
+        if (stored_chksum != computed_chksum) {
+            return -3;  
+        }
+
+        
+        num_headers++;
+    }
+
+    return num_headers; 
 }
 
 /**
