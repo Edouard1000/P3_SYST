@@ -1,5 +1,19 @@
 #include "lib_tar.h"
 
+#define BLOCK_SIZE 512
+
+tar_header_t header;
+
+int move_toNext_file(int fd, tar_header_t* head){
+    unsigned long fileSize = strtol(head->size,NULL,8);
+    long total_ofset = BLOCK_SIZE + ((fileSize + BLOCK_SIZE - 1)/BLOCK_SIZE) * BLOCK_SIZE;
+    if(lseek(fd,total_ofset,SEEK_SET)==-1){
+        printf("Erreur dans Move_toNext_file\n");
+        return 0;
+    }
+    return 1;
+}
+
 /**
  * Checks whether the archive is valid.
  *
@@ -17,6 +31,7 @@
  */
 int check_archive(int tar_fd) {
     return 0;
+    
 }
 
 /**
@@ -29,7 +44,50 @@ int check_archive(int tar_fd) {
  *         any other value otherwise.
  */
 int exists(int tar_fd, char *path) {
-    return 0;
+    int chekFd = check_archive(tar_fd);
+
+    if (chekFd != 0){
+        return chekFd;
+    }
+    while (read(tar_fd, (void *)&header, sizeof(tar_header_t)) == sizeof(tar_header_t)) {
+        // Vérifie si l'en-tête est un fichier vide (fin de l'archive)
+        if (memcmp(header.name, "\0", 100) == 0) {
+            printf("la fin de l'archive\n");
+                if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+                perror("erreur lors pour retourner l'offset au debut du fichier\n");
+                return -1;
+            }
+
+            return -1;
+        }
+        if (memcmp(header.name,path,100)==0){
+            printf("Le fichier est dans l'archive");
+            
+            /* je pense que cest pas une bonne idee de retourner au debut de l'archive apre avoir trouve le fichier sachant que par la suite on a besoin d'utiliser son header pour veifier si le fichier est un fichier ou repertoire ou symlink
+            if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+                perror("erreur lors pour retourner l'offset au debut du fichier\n");
+                return -1;
+            }
+
+            */
+            return 0;
+            
+
+        }
+       if(move_toNext_file(tar_fd,&header)==-1){
+         printf("Erreur dans Move_toNext_file\n");
+         return -1;
+       }
+        
+        
+    }
+    if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+        return -1;
+    }
+    
+    
+    return -1;
 }
 
 /**
@@ -42,6 +100,44 @@ int exists(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_dir(int tar_fd, char *path) {
+
+    int checkExitsFile=exists(tar_fd,path);
+
+    if (checkExitsFile != 0){
+        return checkExitsFile;
+    }
+
+    if ((memcmp(header.typeflag,NULL,156))){
+
+        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+        return -1;
+       
+        }
+
+        printf("le typeflag est nul \n");
+        return -1;
+    }
+
+    long typeFlag = strtol(header.typeflag,NULL,8);
+
+    if (typeFlag != 5){
+        printf("Ce fichier n'est pas un répertoire (typeflag: %ld).\n", typeFlag);
+
+        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+        return -1;
+       
+        }  
+
+        return -1;      
+        
+    }
+    
+
+
+    
+    
     return 0;
 }
 
@@ -55,7 +151,41 @@ int is_dir(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_file(int tar_fd, char *path) {
-    return 0;
+    int checkExitsFile=exists(tar_fd,path);
+
+    if (checkExitsFile != 0){
+        return checkExitsFile;
+    }
+
+    if ((memcmp(header.typeflag,NULL,156))){
+
+        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+        return -1;
+       
+        }
+
+        printf("le typeflag est nul \n");
+        return -1;
+    }
+
+    long typeFlag = strtol(header.typeflag,NULL,8);
+
+    if (typeFlag == 0 || typeFlag==2){
+        return 0;
+   
+        
+    }
+    printf("Ce fichier n'est pas un fichier (typeflag: %ld).\n", typeFlag);
+
+    if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+        return -1;
+       
+    }  
+
+    return -1;   
+
 }
 
 /**
@@ -67,6 +197,39 @@ int is_file(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_symlink(int tar_fd, char *path) {
+    int checkExitsFile=exists(tar_fd,path);
+
+    if (checkExitsFile != 0){
+        return checkExitsFile;
+    }
+
+    if ((memcmp(header.typeflag,NULL,156))){
+
+        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+        return -1;
+       
+        }
+
+        printf("le typeflag est nul \n");
+        return -1;
+    }
+
+    long typeFlag = strtol(header.typeflag,NULL,8);
+
+    if (typeFlag != 1 ){
+         printf("Ce fichier n'est pas un symplink (typeflag: %ld).\n", typeFlag);
+
+        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
+        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+        return -1;
+       
+        }  
+
+        return -1;      
+        
+    }
+
     return 0;
 }
 
@@ -117,4 +280,6 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
  */
 ssize_t read_file(int tar_fd, char *path, size_t offset, uint8_t *dest, size_t *len) {
     return 0;
+
+    
 }
