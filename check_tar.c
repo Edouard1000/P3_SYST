@@ -4,6 +4,18 @@
 #define BLOCK_SIZE 512
 
 tar_header_t header;
+int skip_file_data(int tar_fd, unsigned long file_size) {
+    // Calculer le nombre de blocs nécessaires pour stocker les données du fichier
+    unsigned long num_blocks = (file_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+    // Utiliser lseek pour sauter ces blocs
+    if (lseek(tar_fd, num_blocks * BLOCK_SIZE, SEEK_CUR) == -1) {
+        perror("Error while skipping file data");
+        return -1;  // Erreur lors du saut
+    }
+
+    return 0;  // Succès
+}
 
 /**
  * Checks whether the archive is valid.
@@ -22,51 +34,8 @@ tar_header_t header;
  */
 int check_archive(int tar_fd) {
     tar_header_t header;
-    int num_headers = 0; 
-    unsigned int computed_chksum = 0; 
-
-    if (read(tar_fd, &header, sizeof(header)) != sizeof(header)){
-
-        printf("Un header doit faire 512 bytes\n");
-        return -5;
-    }
-
-    if (memcmp(header.magic,TMAGIC,TMAGLEN) !=0 || memcmp(header.magic,NULL,TMAGLEN) == 0){
-
-        printf("tu n'as pas le bon format\n");
-        return -1;
-    }
-
-    if (memcmp(header.version,TVERSION,TVERSLEN) !=0 || memcmp(header.version,NULL,TVERSLEN) == 0){
-
-        printf("tu n'as pas le bon format\n");
-        return -2;
-    }
-
-    unsigned int stored_chksum = TAR_INT(header.chksum);  // Somme attendue
-
-        char *raw_header = (char *)&header;
-
-
-    for (size_t i = 0; i < sizeof(header); i++) {
-        if (i >= 148 && i < 156) {
-            computed_chksum += ' '; 
-        } else {
-            computed_chksum += (unsigned char)raw_header[i];
-        }
-    }
-
-    if (computed_chksum != stored_chksum){
-        
-        return -3;
-    }
-
-    return 0;
-
-}
+    int num_headers = 0;  
     
-    
-    /*
     while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
         // Vérifiez si l'en-tête est vide (fin de l'archive)
         if (header.name[0] == '\0') {
@@ -75,8 +44,6 @@ int check_archive(int tar_fd) {
 
         // Vérification du champ "magic" 
         if (strncmp(header.magic, TMAGIC, TMAGLEN) != 0) {
-            
-            printf("tu n'as pas le bon format\n");
             return -1;  
         }
 
@@ -103,11 +70,16 @@ int check_archive(int tar_fd) {
             return -3;  
         }
 
+        // Calculer la taille du fichier
+        unsigned long file_size = strtol(header.size, NULL, 8);
+
+        // Appeler la fonction pour sauter les blocs de données
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -4;  // Erreur lors du saut
+        }
         
         num_headers++;
     }
 
     return num_headers; 
 }
-
-*/
