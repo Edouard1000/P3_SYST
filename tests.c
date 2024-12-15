@@ -53,6 +53,16 @@ void test_is_file(int fd, const char *path) {
         printf("Erreur lors de la vérification de '%s' comme fichier dans l'archive.\n", path);
     }
 }
+void test_is_symlink(int fd, const char *path) {
+    int result = is_symlink(fd, (char *)path);
+    if (result == 1) {
+        printf("Le chemin '%s' est un lien symbolique dans l'archive.\n", path);
+    } else if (result == 0) {
+        printf("Le chemin '%s' n'est pas un lien symbolique ou n'existe pas dans l'archive.\n", path);
+    } else {
+        printf("Erreur lors de la vérification de '%s' comme lien symbolique dans l'archive.\n", path);
+    }
+}
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -87,6 +97,13 @@ int main(int argc, char **argv) {
     test_is_file(fd, "file1.txt");    // Test d'un fichier existant
     test_is_file(fd, "dir/");         // Test d'un répertoire (pas un fichier)
     test_is_file(fd, "nonexistent");  // Test d'un chemin inexistant
+
+     // Tester la fonction `is_symlink`
+    printf("\nTest de la fonction is_symlink :\n");
+    test_is_symlink(fd, "link_to_file"); // Test d'un lien symbolique existant
+    test_is_symlink(fd, "file1.txt");   // Test d'un fichier (pas un lien symbolique)
+    test_is_symlink(fd, "nonexistent"); // Test d'un chemin inexistant
+
     // Fermer le descripteur de fichier
     close(fd);
     return 0;

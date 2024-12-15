@@ -185,3 +185,36 @@ int is_file(int tar_fd, char *path) {
 
     return 0; 
 }
+
+int is_symlink(int tar_fd, char *path) {
+    
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return -1;
+    }
+
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        
+        if (header.name[0] == '\0') {
+            break;
+        }
+
+        
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+           
+            if (header.typeflag == SYMTYPE) {
+                return 1; // It is a symlink
+            } else {
+                return 0; // Not a symlink
+            }
+        }
+
+        
+        unsigned long file_size = strtol(header.size, NULL, 8);
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
