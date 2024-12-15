@@ -298,13 +298,18 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
         if (strncmp(header.name, path, strlen(path)) == 0) {
             
             const char *subpath = header.name + strlen(path);
-            
+
             // Si c'est un symlink, récupérer sa destination
             if (header.typeflag == SYMTYPE) {
                 char resolved_path[100];
                 strncpy(resolved_path, header.linkname, sizeof(header.linkname));
                 resolved_path[sizeof(header.linkname) - 1] = '\0';
 
+                // Vérifier si le symlink pointe vers un répertoire
+                if (resolved_path[strlen(resolved_path) - 1] != '/') {
+                    strncat(resolved_path, "/", sizeof(resolved_path) - strlen(resolved_path) - 1);
+                }
+                
                 printf("Le chemin %s est un symlink vers %s\n", header.name, resolved_path);
 
                 // Ajuster pour lister les entrées dans la destination du symlink
