@@ -23,7 +23,16 @@ void debug_dump(const uint8_t *bytes, size_t len) {
         printf("\n");
     }
 }
-
+void test_exists(int tar_fd, const char *path) {
+    int result = exists(tar_fd, (char *)path);
+    if (result == 1) {
+        printf("Le chemin '%s' existe dans l'archive.\n", path);
+    } else if (result == 0) {
+        printf("Le chemin '%s' n'existe pas dans l'archive.\n", path);
+    } else {
+        printf("Erreur lors de la vérification de l'existence de '%s' dans l'archive.\n", path);
+    }
+}
 int main(int argc, char **argv) {
     if (argc < 2) {
         printf("Usage: %s tar_file\n", argv[0]);
@@ -39,5 +48,14 @@ int main(int argc, char **argv) {
     int ret = check_archive(fd);
     printf("check_archive returned %d\n", ret);
 
+    // Tester la fonction `exists`
+    printf("Test de la fonction exists :\n");
+    test_exists(tar_fd, "file1.txt");     // Test d'un fichier existant
+    test_exists(tar_fd, "nonexistent");  // Test d'un chemin inexistant
+    test_exists(tar_fd, "dir/");         // Test d'un répertoire existant
+    test_exists(tar_fd, "link_to_file"); // Test d'un lien symbolique
+
+    // Fermer le descripteur de fichier
+    close(tar_fd);
     return 0;
 }

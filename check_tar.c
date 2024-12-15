@@ -70,16 +70,51 @@ int check_archive(int tar_fd) {
             return -3;  
         }
 
-        // Calculer la taille du fichier
+        
         unsigned long file_size = strtol(header.size, NULL, 8);
 
-        // Appeler la fonction pour sauter les blocs de données
+        // Sauter les blocs de données
         if (skip_file_data(tar_fd, file_size) == -1) {
-            return -4;  // Erreur lors du saut
+            return -4;  
         }
         
         num_headers++;
     }
 
     return num_headers; 
+}
+
+
+int exists(int tar_fd, char *path) {
+    // Remettre le descripteur de fichier au début de l'archive
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return -1;
+    }
+
+    tar_header_t header; 
+
+    
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        // Vérifier si l'en-tête est vide (fin de l'archive)
+        if (header.name[0] == '\0') {
+            break; 
+        }
+
+        
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+            return 1; 
+        }
+
+        
+        unsigned long file_size = strtol(header.size, NULL, 8); 
+        
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -4;  
+        }
+        
+    }
+
+    // Aucune correspondance trouvée
+    return 0;
 }

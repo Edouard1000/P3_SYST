@@ -1,4 +1,6 @@
 #include "lib_tar.h"
+#include "string.h"
+#include "stdio.h"
 
 #define BLOCK_SIZE 512
 
