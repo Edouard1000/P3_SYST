@@ -16,4 +16,4 @@ tests2:
 	./tests soumission.tar
 
 submit2:
-	tar --posix --pax-option delete=".*" --pax-option delete="*time*" --no-xattrs --no-acl --no-selinux -c *.c *.h Makefile *.txt */ > soumission.tar
+	tar --posix --pax-option delete=".*" --pax-option delete="*time*" --no-xattrs --no-acl --no-selinux -c *.c *.h Makefile *.txt */ link_to_file > soumission.tar
