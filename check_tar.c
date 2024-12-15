@@ -218,3 +218,51 @@ int is_symlink(int tar_fd, char *path) {
 
     return 0;
 }
+
+int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
+    
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return 0;
+    }
+
+    tar_header_t header;
+    size_t entry_count = 0;
+
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        
+        if (header.name[0] == '\0') {
+            break;
+        }
+
+        // Vérifier si l'entrée commence par le chemin donné
+        if (strncmp(header.name, path, strlen(path)) == 0) {
+            // Extraire le reste du chemin après `path`
+            const char *subpath = header.name + strlen(path);
+
+            // Si subpath ne contient pas de '/'
+            if (strchr(subpath, '/') == NULL || strchr(subpath, '/') == subpath + strlen(subpath) - 1) {
+                // Ajouter cette entrée à la liste si elle n'est pas déjà pleine
+                if (entry_count < *no_entries) {
+                    strncpy(entries[entry_count], header.name, 100);
+                    entry_count++;
+                } else {
+                    fprintf(stderr, "La liste des entrées est pleine. Augmentez `no_entries`\n");
+                    break;
+                }
+            }
+        }
+
+        // Sauter les blocs de données associés à l'entrée courante en utilisant `skip_file_data`
+        unsigned long file_size = strtol(header.size, NULL, 8);
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            perror("Erreur lors du saut des blocs de données");
+            return 0;
+        }
+    }
+
+    // Mettre à jour le nombre d'entrées listées
+    *no_entries = entry_count;
+
+    return entry_count > 0 ? 1 : 0;
+}
