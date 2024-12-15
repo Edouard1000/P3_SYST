@@ -33,6 +33,17 @@ void test_exists(int fd, const char *path) {
         printf("Erreur lors de la vérification de l'existence de '%s' dans l'archive.\n", path);
     }
 }
+void test_is_dir(int fd, const char *path) {
+    int result = is_dir(fd, (char *)path);
+    if (result == 1) {
+        printf("Le chemin '%s' est un répertoire dans l'archive.\n", path);
+    } else if (result == 0) {
+        printf("Le chemin '%s' n'est pas un répertoire ou n'existe pas dans l'archive.\n", path);
+    } else {
+        printf("Erreur lors de la vérification de '%s' comme répertoire dans l'archive.\n", path);
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         printf("Usage: %s tar_file\n", argv[0]);
@@ -55,6 +66,12 @@ int main(int argc, char **argv) {
     test_exists(fd, "dir/");         // Test d'un répertoire existant
     test_exists(fd, "link_to_file"); // Test d'un lien symbolique
 
+    // Tester la fonction `is_dir`
+    printf("\nTest de la fonction is_dir :\n");
+    test_is_dir(fd, "dir/");         // Test d'un répertoire existant
+    test_is_dir(fd, "file1.txt");    // Test d'un fichier (pas un répertoire)
+    test_is_dir(fd, "nonexistent");  // Test d'un chemin inexistant
+    
     // Fermer le descripteur de fichier
     close(fd);
     return 0;
