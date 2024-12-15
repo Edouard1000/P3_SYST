@@ -101,7 +101,7 @@ void test_read_file(int fd, const char *path, size_t offset, size_t buffer_size)
     if (result >= 0) {
         printf("Lecture réussie pour '%s' à partir de l'offset %zu. Octets lus : %zu, Octets restants : %zd\n", 
                path, offset, len, result);
-        debug_dump(buffer, len);
+        
     } else if (result == -1) {
         printf("Erreur : Le fichier '%s' n'existe pas ou n'est pas un fichier\n", path);
     } else if (result == -2) {

@@ -265,7 +265,11 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
     // Mettre à jour le nombre d'entrées listées
     *no_entries = entry_count;
 
-    return entry_count > 0 ? 1 : 0;
+    if (entry_count > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 ssize_t read_file(int tar_fd, char *path, size_t offset, uint8_t *dest, size_t *len) {
 
@@ -332,7 +336,7 @@ ssize_t read_file(int tar_fd, char *path, size_t offset, uint8_t *dest, size_t *
                 return 0;
             }
         }
-
+        unsigned long file_size = strtol(header.size, NULL, 8);
         if (skip_file_data(tar_fd, file_size) == -1) {
             perror("Erreur lors du saut des blocs de données");
             return -1;
