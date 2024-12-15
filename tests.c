@@ -43,6 +43,16 @@ void test_is_dir(int fd, const char *path) {
         printf("Erreur lors de la vérification de '%s' comme répertoire dans l'archive.\n", path);
     }
 }
+void test_is_file(int fd, const char *path) {
+    int result = is_file(fd, (char *)path);
+    if (result == 1) {
+        printf("Le chemin '%s' est un fichier dans l'archive.\n", path);
+    } else if (result == 0) {
+        printf("Le chemin '%s' n'est pas un fichier ou n'existe pas dans l'archive.\n", path);
+    } else {
+        printf("Erreur lors de la vérification de '%s' comme fichier dans l'archive.\n", path);
+    }
+}
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -71,7 +81,12 @@ int main(int argc, char **argv) {
     test_is_dir(fd, "dir/");         // Test d'un répertoire existant
     test_is_dir(fd, "file1.txt");    // Test d'un fichier (pas un répertoire)
     test_is_dir(fd, "nonexistent");  // Test d'un chemin inexistant
-    
+
+    // Tester la fonction `is_file`
+    printf("\nTest de la fonction is_file :\n");
+    test_is_file(fd, "file1.txt");    // Test d'un fichier existant
+    test_is_file(fd, "dir/");         // Test d'un répertoire (pas un fichier)
+    test_is_file(fd, "nonexistent");  // Test d'un chemin inexistant
     // Fermer le descripteur de fichier
     close(fd);
     return 0;
