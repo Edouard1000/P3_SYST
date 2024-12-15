@@ -5,15 +5,17 @@
 #define BLOCK_SIZE 512
 
 tar_header_t header;
+int skip_file_data(int tar_fd, unsigned long file_size) {
+    // Calculer le nombre de blocs nécessaires pour stocker les données du fichier
+    unsigned long num_blocks = (file_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-int move_toNext_file(int fd, tar_header_t* head){
-    unsigned long fileSize = strtol(head->size,NULL,8);
-    long total_ofset = BLOCK_SIZE + ((fileSize + BLOCK_SIZE - 1)/BLOCK_SIZE) * BLOCK_SIZE;
-    if(lseek(fd,total_ofset,SEEK_SET)==-1){
-        printf("Erreur dans Move_toNext_file\n");
-        return 0;
+    // Utiliser lseek pour sauter ces blocs
+    if (lseek(tar_fd, num_blocks * BLOCK_SIZE, SEEK_CUR) == -1) {
+        perror("Error while skipping file data");
+        return -1;  // Erreur lors du saut
     }
-    return 1;
+
+    return 0;  // Succès
 }
 
 /**
@@ -70,6 +72,13 @@ int check_archive(int tar_fd) {
         }
 
         
+        unsigned long file_size = strtol(header.size, NULL, 8);
+
+        // Sauter les blocs de données
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -4;  
+        }
+        
         num_headers++;
     }
 
@@ -86,51 +95,40 @@ int check_archive(int tar_fd) {
  *         any other value otherwise.
  */
 int exists(int tar_fd, char *path) {
-    int chekFd = check_archive(tar_fd);
-
-    if (chekFd != 0){
-        return chekFd;
-    }
-    while (read(tar_fd, (void *)&header, sizeof(tar_header_t)) == sizeof(tar_header_t)) {
-        // Vérifie si l'en-tête est un fichier vide (fin de l'archive)
-        if (memcmp(header.name, "\0", 100) == 0) {
-            printf("la fin de l'archive\n");
-                if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-                perror("erreur lors pour retourner l'offset au debut du fichier\n");
-                return -1;
-            }
-
-            return -1;
-        }
-        if (memcmp(header.name,path,100)==0){
-            printf("Le fichier est dans l'archive");
-            
-            /* je pense que cest pas une bonne idee de retourner au debut de l'archive apre avoir trouve le fichier sachant que par la suite on a besoin d'utiliser son header pour veifier si le fichier est un fichier ou repertoire ou symlink
-            if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-                perror("erreur lors pour retourner l'offset au debut du fichier\n");
-                return -1;
-            }
-
-            */
-            return 0;
-            
-
-        }
-       if(move_toNext_file(tar_fd,&header)==-1){
-         printf("Erreur dans Move_toNext_file\n");
-         return -1;
-       }
-        
-        
-    }
-    if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-        perror("erreur lors pour retourner l'offset au debut du fichier\n");
+    // Remettre le descripteur de fichier au début de l'archive
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
         return -1;
     }
+
+    tar_header_t header; 
+
     
-    
-    return -1;
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        // Vérifier si l'en-tête est vide (fin de l'archive)
+        if (header.name[0] == '\0') {
+            break; 
+        }
+
+        
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+            return 1; 
+        }
+        printf("%s\n", header.name);
+
+        
+        unsigned long file_size = strtol(header.size, NULL, 8); 
+        
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -4;  
+        }
+        
+    }
+
+    // Aucune correspondance trouvée
+    return 0;
 }
+
 
 /**
  * Checks whether an entry exists in the archive and is a directory.
@@ -142,45 +140,36 @@ int exists(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_dir(int tar_fd, char *path) {
-
-    int checkExitsFile=exists(tar_fd,path);
-
-    if (checkExitsFile != 0){
-        return checkExitsFile;
+    
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return -1;
     }
 
-    if ((memcmp(header.typeflag,NULL,156))){
-
-        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-        perror("erreur lors pour retourner l'offset au debut du fichier\n");
-        return -1;
-       
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        
+        if (header.name[0] == '\0') {
+            break;
         }
 
-        printf("le typeflag est nul \n");
-        return -1;
-    }
-
-    long typeFlag = strtol(header.typeflag,NULL,8);
-
-    if (typeFlag != 5){
-        printf("Ce fichier n'est pas un répertoire (typeflag: %ld).\n", typeFlag);
-
-        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-        perror("erreur lors pour retourner l'offset au debut du fichier\n");
-        return -1;
-       
-        }  
-
-        return -1;      
         
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+            
+            if (header.typeflag == DIRTYPE) {
+                return 1; // It is a directory
+            } else {
+                return 0; // Not a directory
+            }
+        }
+
+       
+        unsigned long file_size = strtol(header.size, NULL, 8);
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -1;
+        }
     }
-    
 
-
-    
-    
-    return 0;
+    return 0; 
 }
 
 /**
@@ -193,41 +182,36 @@ int is_dir(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_file(int tar_fd, char *path) {
-    int checkExitsFile=exists(tar_fd,path);
-
-    if (checkExitsFile != 0){
-        return checkExitsFile;
+    
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return -1;
     }
 
-    if ((memcmp(header.typeflag,NULL,156))){
-
-        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-        perror("erreur lors pour retourner l'offset au debut du fichier\n");
-        return -1;
-       
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        
+        if (header.name[0] == '\0') {
+            break;
         }
 
-        printf("le typeflag est nul \n");
-        return -1;
-    }
-
-    long typeFlag = strtol(header.typeflag,NULL,8);
-
-    if (typeFlag == 0 || typeFlag==2){
-        return 0;
-   
         
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+            
+            if (header.typeflag == REGTYPE || header.typeflag == AREGTYPE) {
+                return 1; // It is a file
+            } else {
+                return 0; // Not a file
+            }
+        }
+
+        
+        unsigned long file_size = strtol(header.size, NULL, 8);
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -1;
+        }
     }
-    printf("Ce fichier n'est pas un fichier (typeflag: %ld).\n", typeFlag);
 
-    if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-        perror("erreur lors pour retourner l'offset au debut du fichier\n");
-        return -1;
-       
-    }  
-
-    return -1;   
-
+    return 0; 
 }
 
 /**
@@ -239,37 +223,33 @@ int is_file(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int is_symlink(int tar_fd, char *path) {
-    int checkExitsFile=exists(tar_fd,path);
-
-    if (checkExitsFile != 0){
-        return checkExitsFile;
+    
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return -1;
     }
 
-    if ((memcmp(header.typeflag,NULL,156))){
-
-        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-        perror("erreur lors pour retourner l'offset au debut du fichier\n");
-        return -1;
-       
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        
+        if (header.name[0] == '\0') {
+            break;
         }
 
-        printf("le typeflag est nul \n");
-        return -1;
-    }
-
-    long typeFlag = strtol(header.typeflag,NULL,8);
-
-    if (typeFlag != 1 ){
-         printf("Ce fichier n'est pas un symplink (typeflag: %ld).\n", typeFlag);
-
-        if ((lseek(tar_fd,0,SEEK_SET ))==-1){
-        perror("erreur lors pour retourner l'offset au debut du fichier\n");
-        return -1;
-       
-        }  
-
-        return -1;      
         
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+           
+            if (header.typeflag == SYMTYPE) {
+                return 1; // It is a symlink
+            } else {
+                return 0; // Not a symlink
+            }
+        }
+
+        
+        unsigned long file_size = strtol(header.size, NULL, 8);
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            return -1;
+        }
     }
 
     return 0;
@@ -299,7 +279,55 @@ int is_symlink(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
-    return 0;
+    
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return 0;
+    }
+
+    tar_header_t header;
+    size_t entry_count = 0;
+
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+        
+        if (header.name[0] == '\0') {
+            break;
+        }
+
+        // Vérifier si l'entrée commence par le chemin donné
+        if (strncmp(header.name, path, strlen(path)) == 0) {
+            
+            const char *subpath = header.name + strlen(path);
+
+            // Si subpath ne contient pas de '/' ou '/' est a la fin path
+            if (strchr(subpath, '/') == NULL || strchr(subpath, '/') == subpath + strlen(subpath) - 1) {
+                
+                if (entry_count < *no_entries) {
+                    strncpy(entries[entry_count], header.name, 100);
+                    entry_count++;
+                } else {
+                    fprintf(stderr, "La liste des entrées est pleine. Augmentez `no_entries`\n");
+                    break;
+                }
+            }
+        }
+
+        
+        unsigned long file_size = strtol(header.size, NULL, 8);
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            perror("Erreur lors du saut des blocs de données");
+            return 0;
+        }
+    }
+
+    // Mettre à jour le nombre d'entrées listées
+    *no_entries = entry_count;
+
+    if (entry_count > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 /**
@@ -321,7 +349,76 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
  *
  */
 ssize_t read_file(int tar_fd, char *path, size_t offset, uint8_t *dest, size_t *len) {
-    return 0;
+
+    if (is_file(tar_fd, path) != 1) {
+        return -1; 
+    }
 
     
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return -1;
+    }
+
+    
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+
+        if (header.name[0] == '\0') {
+            break;
+        }
+
+        
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+            
+            unsigned long file_size = strtol(header.size, NULL, 8);
+
+            
+            if (offset >= file_size) {
+                return -2; 
+            }
+
+            // data_offset = la position courante = juste après l'en-tête
+            unsigned long data_offset = lseek(tar_fd, 0, SEEK_CUR);
+            if (data_offset == (unsigned long)-1) {
+                perror("Erreur lors du calcul de l'offset des données");
+                return -1;
+            }
+
+            data_offset += BLOCK_SIZE; 
+            if (lseek(tar_fd, data_offset + offset, SEEK_SET) == -1) {
+                perror("Erreur lors du positionnement dans le fichier");
+                return -1;
+            }
+
+            // Lire les données
+            size_t bytes_to_read = file_size - offset;
+            if (bytes_to_read > *len) {
+                bytes_to_read = *len; // Ne pas dépasser la taille du tampon
+            }
+
+            ssize_t bytes_read = read(tar_fd, dest, bytes_to_read);
+            if (bytes_read == -1) {
+                perror("Erreur lors de la lecture des données");
+                return -1;
+            }
+
+            *len = bytes_read;
+
+            
+            ssize_t remaining_bytes = file_size - offset - bytes_read;
+
+            if (remaining_bytes > 0) {
+                return remaining_bytes;
+            } else {
+                return 0;
+            }
+        }
+        unsigned long file_size = strtol(header.size, NULL, 8);
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            perror("Erreur lors du saut des blocs de données");
+            return -1;
+        }
+    }
+
+    return -1; 
 }
