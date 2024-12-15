@@ -238,12 +238,12 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
 
         // Vérifier si l'entrée commence par le chemin donné
         if (strncmp(header.name, path, strlen(path)) == 0) {
-            // Extraire le reste du chemin après `path`
+            
             const char *subpath = header.name + strlen(path);
 
-            // Si subpath ne contient pas de '/'
+            // Si subpath ne contient pas de '/' ou '/' est a la fin path
             if (strchr(subpath, '/') == NULL || strchr(subpath, '/') == subpath + strlen(subpath) - 1) {
-                // Ajouter cette entrée à la liste si elle n'est pas déjà pleine
+                
                 if (entry_count < *no_entries) {
                     strncpy(entries[entry_count], header.name, 100);
                     entry_count++;
@@ -254,7 +254,7 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
             }
         }
 
-        // Sauter les blocs de données associés à l'entrée courante en utilisant `skip_file_data`
+        
         unsigned long file_size = strtol(header.size, NULL, 8);
         if (skip_file_data(tar_fd, file_size) == -1) {
             perror("Erreur lors du saut des blocs de données");
