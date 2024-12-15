@@ -152,6 +152,7 @@ int main(int argc, char **argv) {
     test_is_symlink(fd, "nonexistent"); // Test d'un chemin inexistant
 
     printf("Test de la fonction list :\n");
+    test_list(fd, "link_to_dir");   // Tester avec un simlink
     test_list(fd, "dir/");   // Tester avec un répertoire
     test_list(fd, "dir/c/"); // Tester avec un sous-répertoire
     test_list(fd, "dir/a");  // Tester avec un fichier unique
