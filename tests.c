@@ -63,7 +63,7 @@ void test_is_symlink(int fd, const char *path) {
         printf("Erreur lors de la vérification de '%s' comme lien symbolique dans l'archive.\n", path);
     }
 }
-void test_list(int tar_fd, const char *path) {
+void test_list(int fd, const char *path) {
     size_t max_entries = 10; // Nombre maximum d'entrées à lister
     char **entries = malloc(max_entries * sizeof(char *));
 
@@ -74,7 +74,7 @@ void test_list(int tar_fd, const char *path) {
 
     size_t no_entries = max_entries;
 
-    int result = list(tar_fd, (char *)path, entries, &no_entries);
+    int result = list(fd, (char *)path, entries, &no_entries);
 
     if (result > 0) {
         printf("Liste des entrées pour '%s' :\n", path);
@@ -135,10 +135,10 @@ int main(int argc, char **argv) {
     test_is_symlink(fd, "nonexistent"); // Test d'un chemin inexistant
 
     printf("Test de la fonction list :\n");
-    test_list(tar_fd, "dir/");   // Tester avec un répertoire
-    test_list(tar_fd, "dir/c/"); // Tester avec un sous-répertoire
-    test_list(tar_fd, "dir/a");  // Tester avec un fichier unique
-    test_list(tar_fd, "unknown"); // Tester avec un chemin inexistant
+    test_list(fd, "dir/");   // Tester avec un répertoire
+    test_list(fd, "dir/c/"); // Tester avec un sous-répertoire
+    test_list(fd, "dir/a");  // Tester avec un fichier unique
+    test_list(fd, "unknown"); // Tester avec un chemin inexistant
 
     // Fermer le descripteur de fichier
     close(fd);

@@ -105,6 +105,7 @@ int exists(int tar_fd, char *path) {
         if (strncmp(header.name, path, sizeof(header.name)) == 0) {
             return 1; 
         }
+        printf("%s\n", header.name);
 
         
         unsigned long file_size = strtol(header.size, NULL, 8); 
