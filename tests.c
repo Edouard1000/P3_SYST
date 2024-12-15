@@ -23,8 +23,8 @@ void debug_dump(const uint8_t *bytes, size_t len) {
         printf("\n");
     }
 }
-void test_exists(int tar_fd, const char *path) {
-    int result = exists(tar_fd, (char *)path);
+void test_exists(int fd, const char *path) {
+    int result = exists(fd, (char *)path);
     if (result == 1) {
         printf("Le chemin '%s' existe dans l'archive.\n", path);
     } else if (result == 0) {
@@ -50,12 +50,12 @@ int main(int argc, char **argv) {
 
     // Tester la fonction `exists`
     printf("Test de la fonction exists :\n");
-    test_exists(tar_fd, "file1.txt");     // Test d'un fichier existant
-    test_exists(tar_fd, "nonexistent");  // Test d'un chemin inexistant
-    test_exists(tar_fd, "dir/");         // Test d'un répertoire existant
-    test_exists(tar_fd, "link_to_file"); // Test d'un lien symbolique
+    test_exists(fd, "file1.txt");     // Test d'un fichier existant
+    test_exists(fd, "nonexistent");  // Test d'un chemin inexistant
+    test_exists(fd, "dir/");         // Test d'un répertoire existant
+    test_exists(fd, "link_to_file"); // Test d'un lien symbolique
 
     // Fermer le descripteur de fichier
-    close(tar_fd);
+    close(fd);
     return 0;
 }
