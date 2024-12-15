@@ -267,3 +267,77 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
 
     return entry_count > 0 ? 1 : 0;
 }
+ssize_t read_file(int tar_fd, char *path, size_t offset, uint8_t *dest, size_t *len) {
+
+    if (is_file(tar_fd, path) != 1) {
+        return -1; 
+    }
+
+    
+    if (lseek(tar_fd, 0, SEEK_SET) == -1) {
+        perror("Erreur lors du repositionnement au début de l'archive");
+        return -1;
+    }
+
+    
+    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
+
+        if (header.name[0] == '\0') {
+            break;
+        }
+
+        
+        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+            
+            unsigned long file_size = strtol(header.size, NULL, 8);
+
+            
+            if (offset >= file_size) {
+                return -2; 
+            }
+
+            // data_offset = la position courante = juste après l'en-tête
+            unsigned long data_offset = lseek(tar_fd, 0, SEEK_CUR);
+            if (data_offset == (unsigned long)-1) {
+                perror("Erreur lors du calcul de l'offset des données");
+                return -1;
+            }
+
+            data_offset += BLOCK_SIZE; 
+            if (lseek(tar_fd, data_offset + offset, SEEK_SET) == -1) {
+                perror("Erreur lors du positionnement dans le fichier");
+                return -1;
+            }
+
+            // Lire les données
+            size_t bytes_to_read = file_size - offset;
+            if (bytes_to_read > *len) {
+                bytes_to_read = *len; // Ne pas dépasser la taille du tampon
+            }
+
+            ssize_t bytes_read = read(tar_fd, dest, bytes_to_read);
+            if (bytes_read == -1) {
+                perror("Erreur lors de la lecture des données");
+                return -1;
+            }
+
+            *len = bytes_read;
+
+            
+            ssize_t remaining_bytes = file_size - offset - bytes_read;
+
+            if (remaining_bytes > 0) {
+                return remaining_bytes;
+            } else {
+                return 0;
+            }
+        }
+
+        if (skip_file_data(tar_fd, file_size) == -1) {
+            perror("Erreur lors du saut des blocs de données");
+            return -1;
+        }
+    }
+
+    return -1; 
+}

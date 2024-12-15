@@ -93,6 +93,23 @@ void test_list(int fd, const char *path) {
     }
     free(entries);
 }
+void test_read_file(int fd, const char *path, size_t offset, size_t buffer_size) {
+    uint8_t buffer[buffer_size];
+    size_t len = buffer_size;
+    ssize_t result = read_file(fd, (char *)path, offset, buffer, &len);
+
+    if (result >= 0) {
+        printf("Lecture réussie pour '%s' à partir de l'offset %zu. Octets lus : %zu, Octets restants : %zd\n", 
+               path, offset, len, result);
+        debug_dump(buffer, len);
+    } else if (result == -1) {
+        printf("Erreur : Le fichier '%s' n'existe pas ou n'est pas un fichier\n", path);
+    } else if (result == -2) {
+        printf("Erreur : L'offset %zu est hors des limites du fichier '%s'\n", offset, path);
+    } else {
+        printf("Erreur inconnue lors de la lecture du fichier '%s'\n", path);
+    }
+}
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -139,6 +156,14 @@ int main(int argc, char **argv) {
     test_list(fd, "dir/c/"); // Tester avec un sous-répertoire
     test_list(fd, "dir/a");  // Tester avec un fichier unique
     test_list(fd, "unknown"); // Tester avec un chemin inexistant
+
+    // Tester la fonction `read_file`
+    printf("\nTest de la fonction read_file :\n");
+    test_read_file(fd, "file1.txt", 0, 512);        // Lecture complète depuis le début
+    test_read_file(fd, "file1.txt", 10, 512);       // Lecture avec un offset
+    test_read_file(fd, "file1.txt", 1000, 512);     // Offset hors des limites
+    test_read_file(fd, "nonexistent", 0, 512);      // Fichier inexistant
+    test_read_file(fd, "dir/", 0, 512);             // Répertoire au lieu d'un fichier
 
     // Fermer le descripteur de fichier
     close(fd);
