@@ -279,17 +279,6 @@ int is_symlink(int tar_fd, char *path) {
  *         any other value otherwise.
  */
 int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
-    
-    if (tar_fd < 0 || path == NULL || entries == NULL || no_entries == NULL || *no_entries == 0) {
-        fprintf(stderr, "Paramètres invalides passés à la fonction list.\n");
-        return -1; // Paramètres invalides
-    }
-
-    // Valider que `path` est un répertoire existant
-    if (is_dir(tar_fd, path) <= 0) {
-        fprintf(stderr, "Le chemin '%s' n'est pas un répertoire ou n'existe pas dans l'archive.\n", path);
-        return 0; // Aucun répertoire trouvé
-    }
 
     if (lseek(tar_fd, 0, SEEK_SET) == -1) {
         perror("Erreur lors du repositionnement au début de l'archive");
