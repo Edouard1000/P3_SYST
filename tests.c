@@ -128,43 +128,43 @@ int main(int argc, char **argv) {
 
     // Tester la fonction `exists`
     printf("Test de la fonction exists :\n");
-    test_exists(fd, "file1.txt");     // Test d'un fichier existant
-    test_exists(fd, "nonexistent");  // Test d'un chemin inexistant
-    test_exists(fd, "dir/");         // Test d'un répertoire existant
-    test_exists(fd, "link_to_file"); // Test d'un lien symbolique
+    test_exists(fd, "file1.txt");    
+    test_exists(fd, "nonexistent"); 
+    test_exists(fd, "dir/");         
+    test_exists(fd, "link_to_file"); 
 
     // Tester la fonction `is_dir`
     printf("\nTest de la fonction is_dir :\n");
-    test_is_dir(fd, "dir/");         // Test d'un répertoire existant
-    test_is_dir(fd, "file1.txt");    // Test d'un fichier (pas un répertoire)
-    test_is_dir(fd, "nonexistent");  // Test d'un chemin inexistant
+    test_is_dir(fd, "dir/");        
+    test_is_dir(fd, "file1.txt");    
+    test_is_dir(fd, "nonexistent");  
 
     // Tester la fonction `is_file`
     printf("\nTest de la fonction is_file :\n");
-    test_is_file(fd, "file1.txt");    // Test d'un fichier existant
-    test_is_file(fd, "dir/");         // Test d'un répertoire (pas un fichier)
-    test_is_file(fd, "nonexistent");  // Test d'un chemin inexistant
+    test_is_file(fd, "file1.txt");    
+    test_is_file(fd, "dir/");         
+    test_is_file(fd, "nonexistent");  
 
      // Tester la fonction `is_symlink`
     printf("\nTest de la fonction is_symlink :\n");
-    test_is_symlink(fd, "link_to_file"); // Test d'un lien symbolique existant
-    test_is_symlink(fd, "file1.txt");   // Test d'un fichier (pas un lien symbolique)
-    test_is_symlink(fd, "nonexistent"); // Test d'un chemin inexistant
+    test_is_symlink(fd, "link_to_file"); 
+    test_is_symlink(fd, "file1.txt");   
+    test_is_symlink(fd, "nonexistent"); 
 
     printf("Test de la fonction list :\n");
-    test_list(fd, "link_to_dir");   // Tester avec un simlink
-    test_list(fd, "dir/");   // Tester avec un répertoire
-    test_list(fd, "dir/c/"); // Tester avec un sous-répertoire
-    test_list(fd, "dir/a");  // Tester avec un fichier unique
-    test_list(fd, "unknown"); // Tester avec un chemin inexistant
+    test_list(fd, "link_to_dir");   
+    test_list(fd, "dir/");  
+    test_list(fd, "dir/c/"); 
+    test_list(fd, "dir/a");  
+    test_list(fd, "unknown");
 
     // Tester la fonction `read_file`
     printf("\nTest de la fonction read_file :\n");
-    test_read_file(fd, "file1.txt", 0, 512);        // Lecture complète depuis le début
-    test_read_file(fd, "file1.txt", 10, 512);       // Lecture avec un offset
-    test_read_file(fd, "file1.txt", 1000, 512);     // Offset hors des limites
-    test_read_file(fd, "nonexistent", 0, 512);      // Fichier inexistant
-    test_read_file(fd, "dir/", 0, 512);             // Répertoire au lieu d'un fichier
+    test_read_file(fd, "file1.txt", 0, 512);       
+    test_read_file(fd, "file1.txt", 10, 512);       
+    test_read_file(fd, "file1.txt", 1000, 512);     
+    test_read_file(fd, "nonexistent", 0, 512);     
+    test_read_file(fd, "dir/", 0, 512);             
 
     // Fermer le descripteur de fichier
     close(fd);

@@ -1,6 +1,7 @@
 #include "lib_tar.h"
 #include "string.h"
 #include "stdio.h"
+#include <sys/types.h>
 
 #define BLOCK_SIZE 512
 
@@ -9,13 +10,12 @@ int skip_file_data(int tar_fd, unsigned long file_size) {
     // Calculer le nombre de blocs nécessaires pour stocker les données du fichier
     unsigned long num_blocks = (file_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    // Utiliser lseek pour sauter ces blocs
     if (lseek(tar_fd, num_blocks * BLOCK_SIZE, SEEK_CUR) == -1) {
         perror("Error while skipping file data");
-        return -1;  // Erreur lors du saut
+        return -1; 
     }
 
-    return 0;  // Succès
+    return 0; 
 }
 
 /**
@@ -40,7 +40,7 @@ int check_archive(int tar_fd) {
     while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
         // Vérifiez si l'en-tête est vide (fin de l'archive)
         if (header.name[0] == '\0') {
-            break;  // Fin des en-têtes
+            break;  
         }
 
         // Vérification du champ "magic" 
@@ -156,9 +156,9 @@ int is_dir(int tar_fd, char *path) {
         if (strncmp(header.name, path, sizeof(header.name)) == 0) {
             
             if (header.typeflag == DIRTYPE) {
-                return 1; // It is a directory
+                return 1; 
             } else {
-                return 0; // Not a directory
+                return 0; 
             }
         }
 
@@ -198,9 +198,9 @@ int is_file(int tar_fd, char *path) {
         if (strncmp(header.name, path, sizeof(header.name)) == 0) {
             
             if (header.typeflag == REGTYPE || header.typeflag == AREGTYPE) {
-                return 1; // It is a file
+                return 1; 
             } else {
-                return 0; // Not a file
+                return 0;
             }
         }
 
@@ -238,10 +238,10 @@ int is_symlink(int tar_fd, char *path) {
         
         if (strncmp(header.name, path, sizeof(header.name)) == 0) {
            
-            if (header.typeflag == SYMTYPE) {
-                return 1; // It is a symlink
+            if (header.typeflag == SYMTYPE || header.typeflag == LNKTYPE) {
+                return 1; 
             } else {
-                return 0; // Not a symlink
+                return 0; 
             }
         }
 
@@ -278,75 +278,83 @@ int is_symlink(int tar_fd, char *path) {
  * @return zero if no directory at the given path exists in the archive,
  *         any other value otherwise.
  */
+
 int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
 
     if (lseek(tar_fd, 0, SEEK_SET) == -1) {
         perror("Erreur lors du repositionnement au début de l'archive");
-        return -1; // Erreur critique
+        
+        return 0;
+    }
+        
+    if (is_dir(tar_fd, path) != 1 ){
+        
+        return 0;
     }
 
-    tar_header_t header;
-    size_t entry_count = 0;
 
-    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
-        
-        if (header.name[0] == '\0') {
+
+    tar_header_t header2;
+
+    int countEntry = 0;
+    char *pathcpy = malloc(100 * sizeof(char));
+    
+
+
+    while (read(tar_fd, &header2, BLOCK_SIZE) == BLOCK_SIZE){
+
+        if (header2.name[0] == '\0'){
             break;
         }
 
-        // Vérifier si l'entrée commence par le chemin donné
-        if (strncmp(header.name, path, strlen(path)) == 0) {
-            
-            const char *subpath = header.name + strlen(path);
-
-            // Si c'est un symlink, récupérer sa destination
-            if (header.typeflag == SYMTYPE) {
-                char resolved_path[100];
-                strncpy(resolved_path, header.linkname, sizeof(resolved_path) - 1);
-                resolved_path[sizeof(resolved_path) - 1] = '\0'; // Assurez la terminaison nulle
-
-
-                // Vérifier si le symlink pointe vers un répertoire
-                if (resolved_path[strlen(resolved_path) - 1] != '/') {
-                    strncat(resolved_path, "/", sizeof(resolved_path) - strlen(resolved_path) - 1);
-                }
-
-                printf("Le chemin %s est un symlink vers %s\n", header.name, resolved_path);
-
-                // Ajuster pour lister les entrées dans la destination du symlink
-                return list(tar_fd, resolved_path, entries, no_entries);
-            }
-
-            // Si subpath ne contient pas de '/' ou '/' est a la fin path
-            if (strchr(subpath, '/') == NULL || strchr(subpath, '/') == subpath + strlen(subpath) - 1) {
+        if (strncmp(header2.name, path,strlen(path))==0){
+            const char *remainPath = header2.name + strlen(path);
+            if(strchr(remainPath, '/')==NULL || remainPath[strlen(remainPath)-1]=='/'){
                 
-                if (entry_count < *no_entries) {
-                    strncpy(entries[entry_count], header.name, 100);
-                    entry_count++;
-                } else {
-                    fprintf(stderr, "La liste des entrées est pleine. Augmentez `no_entries`\n");
-                    break;
+                if (header2.typeflag == LNKTYPE || header2.typeflag == SYMTYPE){
+                    
+                    strcpy(pathcpy,header2.linkname);
+
+
+                    if (exists(tar_fd, pathcpy) !=1){
+                        free(pathcpy);
+                        return 0;
+                    }
+                    
+
+
+
+                    return list(tar_fd, pathcpy,entries, no_entries);
                 }
-            }
-        }
+            
 
+                
+                if(countEntry < *no_entries){
+                    strncpy(entries[countEntry],header2.name,100);
+                    countEntry++;
+                }
+                
+            }                
+
+        }
+        unsigned long file_size = strtol(header2.size, NULL, 8);
         
-        unsigned long file_size = strtol(header.size, NULL, 8);
-        if (skip_file_data(tar_fd, file_size) == -1) {
-            perror("Erreur lors du saut des blocs de données");
-            return 0;
-        }
+        skip_file_data(tar_fd,file_size);
     }
+        
+        
+        
 
-    // Mettre à jour le nombre d'entrées listées
-    *no_entries = entry_count;
+    free(pathcpy);
 
-    if (entry_count > 0) {
-        return 1;
-    } else {
-        return 0;
-    }
+    *no_entries = countEntry;
+    return (countEntry > 0) ? 1 : 0;
+
+    
+    
+   
 }
+
 
 /**
  * Reads a file at a given path in the archive.
@@ -368,75 +376,103 @@ int list(int tar_fd, char *path, char **entries, size_t *no_entries) {
  */
 ssize_t read_file(int tar_fd, char *path, size_t offset, uint8_t *dest, size_t *len) {
 
-    if (is_file(tar_fd, path) != 1) {
-        return -1; 
-    }
 
-    
+
+    tar_header_t header2;
+
+    char *pathcpy = malloc(100*sizeof(char));
+    strcpy(pathcpy,path);
+
+    // Réinitialiser la position de lecture au début de l'archive
     if (lseek(tar_fd, 0, SEEK_SET) == -1) {
         perror("Erreur lors du repositionnement au début de l'archive");
+        free(pathcpy);
         return -1;
     }
 
-    
-    while (read(tar_fd, &header, sizeof(header)) == sizeof(header)) {
 
-        if (header.name[0] == '\0') {
-            break;
+    // Parcourir les entrées de l'archive
+    while (read(tar_fd, &header2, BLOCK_SIZE) == BLOCK_SIZE) {
+        if (header2.name[0] == '\0') {
+            break;  // Fin de l'archive
         }
 
-        
-        if (strncmp(header.name, path, sizeof(header.name)) == 0) {
+        if (strncmp(header2.name, pathcpy, sizeof(header2.name)) == 0) {
+            // Gestion des symlinks
+            if (header2.typeflag == '2' || header2.typeflag == '1' ) {
+
+                strcpy(pathcpy,header2.linkname);
+
+                return read_file(tar_fd, pathcpy, offset, dest, len);
+            }
+
+            else{
+
+                if (is_file(tar_fd, pathcpy) != 1 || exists(tar_fd, pathcpy) != 1) {
+                    free(pathcpy);
+                    return -1; 
+                }
+
+                unsigned long file_size = strtol(header2.size, NULL, 8);
+
+                // Vérification de l'offset
+                if (offset >= file_size || offset<0) {
+                    free(pathcpy);
+                    *len = 0;
+                    return -2;  // Offset trop grand
+                }
+
+
+                size_t bytes_to_read = file_size - offset;
+
+
+                // Lire les données
+
+                if (bytes_to_read > *len) {
+                    bytes_to_read = *len;  // Ne pas dépasser la taille du tampon
+                }
+
+                if (lseek(tar_fd, offset, SEEK_CUR) == -1) {
+                    perror("Erreur lors du positionnement dans le fichier");
+                    free(pathcpy);
+                    return -1;
+                }
+
+                ssize_t bytes_read = read(tar_fd, dest, bytes_to_read);
+                if (bytes_read == -1) {
+                    perror("Erreur lors de la lecture des données");
+                    free(pathcpy);
+                    *len = 0;
+                    return -1;
+                }
             
-            unsigned long file_size = strtol(header.size, NULL, 8);
+                *len = bytes_read;
 
-            
-            if (offset >= file_size) {
-                return -2; 
+                // Retourner le nombre d'octets restants à lire
+                ssize_t bytesRestant = file_size - offset - bytes_read;
+
+                if(bytesRestant == 0){
+                    free(pathcpy);
+                    return 0;
+                }
+
+                free(pathcpy);
+                return bytesRestant;
+
+                   
             }
 
-            // data_offset = la position courante = juste après l'en-tête
-            unsigned long data_offset = lseek(tar_fd, 0, SEEK_CUR);
-            if (data_offset == (unsigned long)-1) {
-                perror("Erreur lors du calcul de l'offset des données");
-                return -1;
-            }
 
-            data_offset += BLOCK_SIZE; 
-            if (lseek(tar_fd, data_offset + offset, SEEK_SET) == -1) {
-                perror("Erreur lors du positionnement dans le fichier");
-                return -1;
-            }
-
-            // Lire les données
-            size_t bytes_to_read = file_size - offset;
-            if (bytes_to_read > *len) {
-                bytes_to_read = *len; // Ne pas dépasser la taille du tampon
-            }
-
-            ssize_t bytes_read = read(tar_fd, dest, bytes_to_read);
-            if (bytes_read == -1) {
-                perror("Erreur lors de la lecture des données");
-                return -1;
-            }
-
-            *len = bytes_read;
-
-            
-            ssize_t remaining_bytes = file_size - offset - bytes_read;
-
-            if (remaining_bytes > 0) {
-                return remaining_bytes;
-            } else {
-                return 0;
-            }
         }
-        unsigned long file_size = strtol(header.size, NULL, 8);
+
+        unsigned long file_size = strtol(header2.size, NULL, 8);
         if (skip_file_data(tar_fd, file_size) == -1) {
             perror("Erreur lors du saut des blocs de données");
+            free(pathcpy);
             return -1;
         }
     }
+    free(pathcpy);
 
-    return -1; 
+    return -1;  
 }
